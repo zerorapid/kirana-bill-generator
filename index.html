@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kirana Pro Invoice Generator</title>
+    <title>OmniBill - Universal Invoice Generator</title>
     
     <!-- Dependencies -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -241,12 +241,17 @@
             return (
                 <div className="space-y-0">
                     {/* Store Section */}
-                    <SectionCard title="Store Details" icon="">
+                    <SectionCard title="Store Details" icon="🏢">
                         <div className="grid grid-cols-2 gap-3">
-                            <Input label="Store Name" value={formData.store.name} onChange={e => updateStore('name', e.target.value)} />
-                            <Input label="GSTIN" value={formData.store.gstin} onChange={e => updateStore('gstin', e.target.value.toUpperCase())} maxLength={15} placeholder="29ABCDE..." />
+                            <Input label="Store Name" value={formData.store.name} onChange={e => updateStore('name', e.target.value)} placeholder="e.g. Acme Corp" />
+                            <Select label="Business Type" value={formData.store.type} onChange={e => updateStore('type', e.target.value)} options={[
+                                { value: 'Retail', label: 'Retail / Shop' }, { value: 'Service', label: 'Services / Agency' }, { value: 'Wholesale', label: 'B2B Wholesale' }
+                            ]} />
                         </div>
-                        <Input label="Address" value={formData.store.address} onChange={e => updateStore('address', e.target.value)} />
+                        <div className="grid grid-cols-2 gap-3">
+                            <Input label="GSTIN" value={formData.store.gstin} onChange={e => updateStore('gstin', e.target.value.toUpperCase())} maxLength={15} placeholder="Optional" />
+                            <Input label="Address" value={formData.store.address} onChange={e => updateStore('address', e.target.value)} placeholder="City, State" />
+                        </div>
                         <div className="grid grid-cols-2 gap-3">
                             <Input label="Phone" value={formData.store.phone} onChange={e => updateStore('phone', e.target.value)} />
                             <Input label="Email" value={formData.store.email} onChange={e => updateStore('email', e.target.value)} type="email" />
@@ -269,8 +274,11 @@
                             ]} />
                         </div>
                         <div className="mt-3 pt-3 border-t border-gray-100">
-                            <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Adjustments & Payment</h4>
-                            <div className="grid grid-cols-3 gap-3">
+                            <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Adjustments & Style</h4>
+                            <div className="grid grid-cols-4 gap-3">
+                                <Select label="Template" value={formData.invoice.template} onChange={e => updateInv('template', e.target.value)} options={[
+                                    { value: 'Standard', label: 'Standard (A4)' }, { value: 'Minimal', label: 'Minimalist' }
+                                ]} />
                                 <Select label="Discount Type" value={formData.invoice.discountType} onChange={e => updateInv('discountType', e.target.value)} options={[
                                     { value: 'flat', label: 'Flat (₹)' }, { value: 'percent', label: 'Percent (%)' }
                                 ]} />
@@ -284,14 +292,14 @@
                     <SectionCard title="Add Items" icon="📦">
                         <div className="grid grid-cols-12 gap-3 mb-2">
                             <div className="col-span-12 sm:col-span-6">
-                                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Item Name / Barcode</label>
-                                <input id="item-name-input" list="catalog-list" value={itemForm.name} onChange={handleItemNameChange} onKeyDown={handleBarcodeScan} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm transition-all input-focus" placeholder="Scan or type..." />
+                                <label className="block text-xs font-semibold text-gray-600 mb-1.5">{formData.store.type === 'Service' ? 'Service Description' : 'Item Name / Barcode'}</label>
+                                <input id="item-name-input" list="catalog-list" value={itemForm.name} onChange={handleItemNameChange} onKeyDown={handleBarcodeScan} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm transition-all input-focus" placeholder={formData.store.type === 'Service' ? 'e.g. Web Design' : 'Scan or type...'} />
                                 <datalist id="catalog-list">
                                     {catalog.map((c, i) => <option key={i} value={c.name} />)}
                                 </datalist>
                             </div>
-                            <div className="col-span-4 sm:col-span-2"><Input label="HSN" value={itemForm.hsn} onChange={e => setItemForm({...itemForm, hsn: e.target.value})} placeholder="1701" /></div>
-                            <div className="col-span-4 sm:col-span-2"><Input label="Qty" type="number" min="1" value={itemForm.qty} onChange={e => setItemForm({...itemForm, qty: Number(e.target.value)})} /></div>
+                            <div className="col-span-4 sm:col-span-2"><Input label={formData.store.type === 'Service' ? 'SAC' : 'HSN'} value={itemForm.hsn} onChange={e => setItemForm({...itemForm, hsn: e.target.value})} placeholder="0000" /></div>
+                            <div className="col-span-4 sm:col-span-2"><Input label={formData.store.type === 'Service' ? 'Hours/Qty' : 'Qty'} type="number" min="1" value={itemForm.qty} onChange={e => setItemForm({...itemForm, qty: Number(e.target.value)})} /></div>
                             <div className="col-span-4 sm:col-span-2">
                                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">Unit</label>
                                 <select value={itemForm.unit} onChange={e => setItemForm({...itemForm, unit: e.target.value})} className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm input-focus">
@@ -378,17 +386,17 @@
                 <div className="print-container sticky top-6">
                     <div id="invoice-capture" className="invoice-paper bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden">
                         {/* Invoice Header */}
-                        <div className="bg-gray-900 text-white px-8 py-8 flex justify-between items-start">
+                        <div className={`px-8 py-8 flex justify-between items-start ${formData.invoice.template === 'Minimal' ? 'bg-white text-gray-800 border-b-2 border-gray-800' : 'bg-gray-900 text-white'}`}>
                             <div>
-                                <h1 className="text-2xl font-bold tracking-tight mb-1">{formData.store.name}</h1>
-                                <p className="text-gray-400 text-sm leading-relaxed max-w-md">
+                                <h1 className="text-3xl font-black tracking-tight mb-1">{formData.store.name || 'Your Business Name'}</h1>
+                                <p className={`text-sm leading-relaxed max-w-md ${formData.invoice.template === 'Minimal' ? 'text-gray-500' : 'text-gray-400'}`}>
                                     {formData.store.address}<br/>
-                                    GSTIN: <span className="text-white font-mono">{formData.store.gstin}</span>
+                                    {formData.store.gstin && <>GSTIN: <span className="font-mono">{formData.store.gstin}</span></>}
                                 </p>
                             </div>
                             <div className="text-right">
-                                <h2 className="text-3xl font-black tracking-widest text-emerald-400 uppercase">Tax Invoice</h2>
-                                <div className="mt-4 inline-block px-4 py-1 bg-white/10 rounded-full text-xs font-medium border border-white/10">
+                                <h2 className={`text-3xl font-black tracking-widest uppercase ${formData.invoice.template === 'Minimal' ? 'text-gray-800' : 'text-blue-400'}`}>Tax Invoice</h2>
+                                <div className={`mt-4 inline-block px-4 py-1 rounded-full text-xs font-bold border ${formData.invoice.template === 'Minimal' ? 'bg-gray-100 text-gray-600 border-gray-200' : 'bg-white/10 text-white border-white/10'}`}>
                                     Original for Recipient
                                 </div>
                             </div>
@@ -425,7 +433,7 @@
                                     <tr className="border-b-2 border-gray-200 text-gray-500 text-[10px] uppercase tracking-wider">
                                         <th className="pb-3 text-left w-8">#</th>
                                         <th className="pb-3 text-left">Description</th>
-                                        <th className="pb-3 text-center w-16">Qty</th>
+                                        <th className="pb-3 text-center w-16">{formData.store.type === 'Service' ? 'Hrs' : 'Qty'}</th>
                                         <th className="pb-3 text-right w-20">Rate</th>
                                         <th className="pb-3 text-right w-20">Taxable</th>
                                         <th className="pb-3 text-center w-16">GST</th>
@@ -441,7 +449,7 @@
                                             <td className="py-3 text-gray-400 text-xs">{idx + 1}</td>
                                             <td className="py-3">
                                                 <div className="font-bold text-gray-800">{item.name}</div>
-                                                <div className="text-[10px] text-gray-400 font-mono">HSN: {item.hsn || '-'}</div>
+                                                <div className="text-[10px] text-gray-400 font-mono">{formData.store.type === 'Service' ? 'SAC' : 'HSN'}: {item.hsn || '-'}</div>
                                             </td>
                                             <td className="py-3 text-center">{item.qty} {item.unit}</td>
                                             <td className="py-3 text-right">{item.rate.toFixed(2)}</td>
@@ -538,9 +546,9 @@
         // ──────────── MAIN APP ────────────
         const App = () => {
             const [formData, setFormData] = useState({
-                store: { name: 'Sri Lakshmi Kirana Stores', gstin: '29ABCDE1234F1Z5', address: '#42, MG Road, Bengaluru - 560011', phone: '+91 98765 43210', email: '' },
+                store: { name: 'Your Business Name', gstin: '', address: '', phone: '', email: '', type: 'Retail' },
                 customer: { name: '', phone: '', address: '' },
-                invoice: { no: `INV-${String(1).padStart(4, '0')}`, date: new Date().toISOString().split('T')[0], payment: 'Cash', place: 'intrastate', discountType: 'flat', discountValue: '', amountPaid: '' }
+                invoice: { no: `INV-${String(1).padStart(4, '0')}`, date: new Date().toISOString().split('T')[0], payment: 'Cash', place: 'intrastate', discountType: 'flat', discountValue: '', amountPaid: '', template: 'Standard' }
             });
             const [items, setItems] = useState([]);
             const [itemForm, setItemForm] = useState({ name: '', hsn: '', qty: 1, unit: 'Pcs', rate: '', gst: 5 });
@@ -658,7 +666,7 @@
                     {/* Header */}
                     <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-40 shadow-sm">
                         <div>
-                            <h1 className="text-xl font-black text-gray-800 tracking-tight flex items-center gap-2">🛒 KiranaPro <span className="text-emerald-500 text-sm font-medium px-2 py-0.5 bg-emerald-50 rounded-full">Invoice</span></h1>
+                            <h1 className="text-xl font-black text-gray-800 tracking-tight flex items-center gap-2">⚡ OmniBill <span className="text-blue-500 text-sm font-medium px-2 py-0.5 bg-blue-50 rounded-full">Universal</span></h1>
                         </div>
                         <div className="flex items-center gap-3">
                             {status && (
