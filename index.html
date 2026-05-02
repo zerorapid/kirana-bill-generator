@@ -7,6 +7,8 @@
     
     <!-- Dependencies -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -267,19 +269,29 @@
                             </div>
                             {formData.store.logo && <button onClick={() => updateStore('logo', '')} className="text-xs text-red-500 hover:text-red-700 font-bold px-2">Remove</button>}
                         </div>
-                        <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center gap-3">
-                            <div className="flex-1">
-                                <label className="block text-xs font-semibold text-gray-600 mb-1">E-Signature</label>
-                                <input type="file" accept="image/*" onChange={(e) => {
-                                    const file = e.target.files[0];
-                                    if (file) {
-                                        const reader = new FileReader();
-                                        reader.onloadend = () => updateStore('signature', reader.result);
-                                        reader.readAsDataURL(file);
-                                    }
-                                }} className="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:font-semibold file:bg-emerald-100 file:text-emerald-700 hover:file:bg-emerald-200 cursor-pointer" />
+                        <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                            <div className="flex items-center justify-between mb-2">
+                                <label className="text-xs font-semibold text-gray-600">E-Signature</label>
+                                <div className="flex bg-white border border-gray-200 rounded-md p-0.5">
+                                    <button onClick={() => updateStore('signatureType', 'image')} className={`px-2 py-0.5 text-[10px] rounded ${formData.store.signatureType === 'image' ? 'bg-emerald-600 text-white' : 'text-gray-500'}`}>Image</button>
+                                    <button onClick={() => updateStore('signatureType', 'text')} className={`px-2 py-0.5 text-[10px] rounded ${formData.store.signatureType === 'text' ? 'bg-emerald-600 text-white' : 'text-gray-500'}`}>Type</button>
+                                </div>
                             </div>
-                            {formData.store.signature && <button onClick={() => updateStore('signature', '')} className="text-xs text-red-500 hover:text-red-700 font-bold px-2">Remove</button>}
+                            {formData.store.signatureType === 'image' ? (
+                                <div className="flex items-center gap-3">
+                                    <input type="file" accept="image/*" onChange={(e) => {
+                                        const file = e.target.files[0];
+                                        if (file) {
+                                            const reader = new FileReader();
+                                            reader.onloadend = () => updateStore('signature', reader.result);
+                                            reader.readAsDataURL(file);
+                                        }
+                                    }} className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-emerald-50 file:text-emerald-700" />
+                                    {formData.store.signature && <button onClick={() => updateStore('signature', '')} className="text-[10px] text-red-500 font-bold">Remove</button>}
+                                </div>
+                            ) : (
+                                <input type="text" value={formData.store.signatureText} onChange={e => updateStore('signatureText', e.target.value)} placeholder="Type your name..." className="w-full px-2 py-1.5 text-sm bg-white border border-gray-200 rounded-md" style={{ fontFamily: "'Dancing Script', cursive" }} />
+                            )}
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <Input label="Store Name" value={formData.store.name} onChange={e => updateStore('name', e.target.value)} placeholder="e.g. Acme Corp" />
@@ -644,8 +656,10 @@
                         <div className="px-8 pb-8 flex justify-end">
                             <div className="text-center">
                                 <div className="w-40 h-16 border-b-2 border-gray-800 mb-2 flex items-center justify-center">
-                                    {formData.store.signature ? (
+                                    {formData.store.signatureType === 'image' && formData.store.signature ? (
                                         <img src={formData.store.signature} alt="Signature" className="max-h-full max-w-full object-contain" />
+                                    ) : formData.store.signatureType === 'text' && formData.store.signatureText ? (
+                                        <span style={{ fontFamily: "'Dancing Script', cursive" }} className="text-2xl text-gray-800">{formData.store.signatureText}</span>
                                     ) : null}
                                 </div>
                                 <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Authorized Signatory</p>
@@ -660,10 +674,39 @@
             );
         };
 
-        // ──────────── MAIN APP ────────────
-        const App = () => {
+            // ──────────── AUTH & DATABASE ────────────
+            const supabaseUrl = 'https://asvelariyhlcrnujtqsq.supabase.co';
+            const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFzdmVsYXJpeWhsY3JudWp0cXNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4Njk1NzUsImV4cCI6MjA5MjQ0NTU3NX0.1Q5osRdbooZsMGlkG6OjjW4BbV2lRPxkVujLHleHRtk';
+            const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+            const [user, setUser] = useState(null);
+            const [isLoginModal, setIsLoginModal] = useState(false);
+            const [authForm, setAuthForm] = useState({ email: '', password: '', isSignup: false });
+            const [isSaving, setIsSaving] = useState(false);
+
+            useEffect(() => {
+                supabase.auth.getSession().then(({ data: { session } }) => {
+                    setUser(session?.user || null);
+                });
+                const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+                    setUser(session?.user || null);
+                });
+                return () => subscription.unsubscribe();
+            }, []);
+
+            const handleAuth = async (e) => {
+                e.preventDefault();
+                try {
+                    const { error } = authForm.isSignup 
+                        ? await supabase.auth.signUp({ email: authForm.email, password: authForm.password })
+                        : await supabase.auth.signInWithPassword({ email: authForm.email, password: authForm.password });
+                    if (error) throw error;
+                    setIsLoginModal(false);
+                } catch (err) { alert(err.message); }
+            };
+
             const [formData, setFormData] = useState({
-                store: { name: 'Your Business Name', gstin: '', address: '', phone: '', email: '', type: 'Retail', logo: '', signature: '', brandColor: '#10b981' },
+                store: { name: 'Your Business Name', gstin: '', address: '', phone: '', email: '', type: 'Retail', logo: '', signature: '', signatureText: '', signatureType: 'image', brandColor: '#10b981' },
                 customer: { name: '', phone: '', address: '' },
                 invoice: { no: `INV-${String(1).padStart(4, '0')}`, date: new Date().toISOString().split('T')[0], payment: 'Cash', place: 'intrastate', discountType: 'flat', discountValue: '', amountPaid: '', template: 'Standard' }
             });
@@ -699,6 +742,23 @@
                 const phone = formData.customer.phone.replace(/[^0-9]/g, '');
                 const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
                 window.open(url, '_blank');
+            };
+
+            const saveInvoice = async () => {
+                if (!user) { setIsLoginModal(true); return; }
+                setIsSaving(true);
+                try {
+                    const { error } = await supabase.from('omnibill_invoices').insert({
+                        user_id: user.id,
+                        invoice_no: formData.invoice.no,
+                        customer_name: formData.customer.name,
+                        total_amount: totals.grandTotal,
+                        data: formData
+                    });
+                    if (error) throw error;
+                    alert('Invoice saved successfully!');
+                } catch (err) { alert(err.message); }
+                finally { setIsSaving(false); }
             };
 
             const handleExportCSV = () => exportToCSV(items);
@@ -766,7 +826,22 @@
                         setStatus(null);
                     }, 500);
                 }
-            }, [items, formData]);
+            const saveInvoice = async () => {
+                if (!user) { setIsLoginModal(true); return; }
+                setIsSaving(true);
+                try {
+                    const { error } = await supabase.from('omnibill_invoices').insert({
+                        user_id: user.id,
+                        invoice_no: formData.invoice.no,
+                        customer_name: formData.customer.name,
+                        total_amount: totals.grandTotal,
+                        data: formData
+                    });
+                    if (error) throw error;
+                    alert('Invoice saved successfully!');
+                } catch (err) { alert(err.message); }
+                finally { setIsSaving(false); }
+            };
 
             const handleReset = () => {
                 if (!confirm('Clear everything?')) return;
@@ -781,16 +856,32 @@
             return (
                 <div className="min-h-screen no-print">
                     {/* Header */}
-                    <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-40 shadow-sm">
-                        <div>
-                            <h1 className="text-xl font-black text-gray-800 tracking-tight flex items-center gap-2">⚡ OmniBill <span className="text-blue-500 text-sm font-medium px-2 py-0.5 bg-blue-50 rounded-full">Universal</span></h1>
+                    <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200 px-6 py-4 flex items-center justify-between shadow-sm no-print">
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-100">
+                                <span className="text-xl font-black text-white">O</span>
+                            </div>
+                            <div>
+                                <h1 className="text-lg font-black tracking-tight text-gray-900 leading-none">OMNIBILL</h1>
+                                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest leading-none mt-1">Smart Ledger</p>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                            {status && (
-                                <span className={`text-xs font-bold px-3 py-1 rounded-full animate-pulse ${status.type === 'loading' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                                    {status.message}
-                                </span>
+                        
+                        <div className="flex items-center gap-4">
+                            {user ? (
+                                <div className="flex items-center gap-4">
+                                    <span className="hidden sm:inline text-xs font-semibold text-gray-500">Hi, {user.email.split('@')[0]}</span>
+                                    <button onClick={() => supabase.auth.signOut()} className="px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-all">Logout</button>
+                                </div>
+                            ) : (
+                                <button onClick={() => setIsLoginModal(true)} className="px-4 py-2 bg-gray-900 text-white rounded-lg text-xs font-bold hover:bg-black transition-all">Login</button>
                             )}
+                            <button onClick={saveInvoice} disabled={isSaving} className={`flex items-center gap-2 px-4 py-2 ${isSaving ? 'bg-gray-400' : 'bg-emerald-600 hover:bg-emerald-700'} text-white rounded-lg text-xs font-bold transition-all`}>
+                                {isSaving ? 'Saving...' : 'Save Bill'}
+                            </button>
+                            <button onClick={handleDownload} className="px-4 py-2 bg-gray-900 text-white rounded-lg text-xs font-bold hover:bg-black transition-all shadow-lg shadow-gray-200">
+                                Download
+                            </button>
                         </div>
                     </header>
                     
@@ -817,6 +908,44 @@
                             <InvoicePreview formData={formData} items={items} totals={totals} amountWords={amountWords} />
                         </div>
                     </div>
+
+                    {/* Login Modal */}
+                    {isLoginModal && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-gray-200 relative animate-in fade-in zoom-in duration-300">
+                                <div className="p-8">
+                                    <div className="text-center mb-8">
+                                        <div className="w-14 h-14 bg-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                            <span className="text-2xl font-black text-white">O</span>
+                                        </div>
+                                        <h2 className="text-xl font-black text-gray-900 tracking-tight">Enterprise Access</h2>
+                                        <p className="text-gray-500 text-sm mt-1">{authForm.isSignup ? 'Register your workspace' : 'Sign in to sync your ledger'}</p>
+                                    </div>
+                                    
+                                    <form onSubmit={handleAuth} className="space-y-4">
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5 ml-1">Email Address</label>
+                                            <input type="email" required value={authForm.email} onChange={e => setAuthForm({...authForm, email: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-emerald-500 transition-all" placeholder="admin@company.com" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5 ml-1">Password</label>
+                                            <input type="password" required value={authForm.password} onChange={e => setAuthForm({...authForm, password: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-emerald-500 transition-all" placeholder="••••••••" />
+                                        </div>
+                                        <button type="submit" className="w-full py-4 bg-gray-900 text-white rounded-xl font-bold text-sm shadow-xl hover:bg-black mt-2 active:scale-95 transition-all">
+                                            {authForm.isSignup ? 'Create Workspace' : 'Launch Session'}
+                                        </button>
+                                    </form>
+                                    
+                                    <div className="mt-8 pt-6 border-t border-gray-100 text-center">
+                                        <button onClick={() => setAuthForm({...authForm, isSignup: !authForm.isSignup})} className="text-xs font-bold text-emerald-600 hover:text-emerald-700">
+                                            {authForm.isSignup ? 'Already have an account? Login' : "New here? Create your workspace"}
+                                        </button>
+                                    </div>
+                                    <button onClick={() => setIsLoginModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl font-light">×</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         };
