@@ -828,32 +828,11 @@
                     setStatus({ type: 'success', message: 'PDF Downloaded!' });
                     setTimeout(() => setStatus(null), 2000);
                 } catch (err) {
-                    // Fallback to Print
                     console.error("PDF Gen Failed", err);
-                    setStatus({ type: 'info', message: 'Opening Print Dialog... (Save as PDF)' });
-                    
-                    // Small delay to let UI update before print dialog blocks thread
-                    setTimeout(() => {
-                        window.print();
-                        setStatus(null);
-                    }, 500);
+                    setStatus({ type: 'info', message: 'Opening Print Dialog...' });
+                    setTimeout(() => { window.print(); setStatus(null); }, 500);
                 }
-            const saveInvoice = async () => {
-                if (!user) { setIsLoginModal(true); return; }
-                setIsSaving(true);
-                try {
-                    const { error } = await supabase.from('omnibill_invoices').insert({
-                        user_id: user.id,
-                        invoice_no: formData.invoice.no,
-                        customer_name: formData.customer.name,
-                        total_amount: totals.grandTotal,
-                        data: formData
-                    });
-                    if (error) throw error;
-                    alert('Invoice saved successfully!');
-                } catch (err) { alert(err.message); }
-                finally { setIsSaving(false); }
-            };
+            }, [items, formData]);
 
             const handleReset = () => {
                 if (!confirm('Clear everything?')) return;
@@ -864,6 +843,7 @@
                     invoice: { ...prev.invoice, no: `INV-${String(Math.floor(Math.random() * 9000) + 1000).slice(-4)}`, date: new Date().toISOString().split('T')[0], payment: 'Cash' }
                 }));
             };
+
 
             return (
                 <div className="min-h-screen no-print">
