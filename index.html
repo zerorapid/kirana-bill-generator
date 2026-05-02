@@ -258,6 +258,20 @@
                             </div>
                             {formData.store.logo && <button onClick={() => updateStore('logo', '')} className="text-xs text-red-500 hover:text-red-700 font-bold px-2">Remove</button>}
                         </div>
+                        <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center gap-3">
+                            <div className="flex-1">
+                                <label className="block text-xs font-semibold text-gray-600 mb-1">E-Signature</label>
+                                <input type="file" accept="image/*" onChange={(e) => {
+                                    const file = e.target.files[0];
+                                    if (file) {
+                                        const reader = new FileReader();
+                                        reader.onloadend = () => updateStore('signature', reader.result);
+                                        reader.readAsDataURL(file);
+                                    }
+                                }} className="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:font-semibold file:bg-emerald-100 file:text-emerald-700 hover:file:bg-emerald-200 cursor-pointer" />
+                            </div>
+                            {formData.store.signature && <button onClick={() => updateStore('signature', '')} className="text-xs text-red-500 hover:text-red-700 font-bold px-2">Remove</button>}
+                        </div>
                         <div className="grid grid-cols-2 gap-3">
                             <Input label="Store Name" value={formData.store.name} onChange={e => updateStore('name', e.target.value)} placeholder="e.g. Acme Corp" />
                             <Select label="Business Type" value={formData.store.type} onChange={e => updateStore('type', e.target.value)} options={[
@@ -447,8 +461,13 @@
                                     <span>TOTAL</span><span>₹{totals.grandTotal.toFixed(2)}</span>
                                 </div>
                             </div>
+                            {formData.store.signature && (
+                                <div className="mt-4 flex justify-center">
+                                    <img src={formData.store.signature} className="h-8 object-contain" alt="Signature" />
+                                </div>
+                            )}
 
-                            <div className="text-center mt-6 text-[10px] uppercase">
+                            <div className="text-center mt-4 text-[10px] uppercase">
                                 <p>*** THANK YOU ***</p>
                                 <p>VISIT AGAIN</p>
                             </div>
@@ -616,7 +635,11 @@
                         {/* Signature */}
                         <div className="px-8 pb-8 flex justify-end">
                             <div className="text-center">
-                                <div className="w-40 h-16 border-b-2 border-gray-800 mb-2"></div>
+                                <div className="w-40 h-16 border-b-2 border-gray-800 mb-2 flex items-center justify-center">
+                                    {formData.store.signature ? (
+                                        <img src={formData.store.signature} alt="Signature" className="max-h-full max-w-full object-contain" />
+                                    ) : null}
+                                </div>
                                 <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Authorized Signatory</p>
                             </div>
                         </div>
@@ -632,7 +655,7 @@
         // ──────────── MAIN APP ────────────
         const App = () => {
             const [formData, setFormData] = useState({
-                store: { name: 'Your Business Name', gstin: '', address: '', phone: '', email: '', type: 'Retail', logo: '' },
+                store: { name: 'Your Business Name', gstin: '', address: '', phone: '', email: '', type: 'Retail', logo: '', signature: '' },
                 customer: { name: '', phone: '', address: '' },
                 invoice: { no: `INV-${String(1).padStart(4, '0')}`, date: new Date().toISOString().split('T')[0], payment: 'Cash', place: 'intrastate', discountType: 'flat', discountValue: '', amountPaid: '', template: 'Standard' }
             });
